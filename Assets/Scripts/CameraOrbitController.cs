@@ -1,5 +1,4 @@
 using System.Collections;
-using UnityEditor;
 using UnityEngine;
 
 [DisallowMultipleComponent]
@@ -7,65 +6,55 @@ public class CameraOrbitController : MonoBehaviour
 {
     public static CameraOrbitController Instance { get; private set; }
 
-    [Header("Camera")]
-    private Camera targetCamera;
+    [Header("--- CORE COMPONENTS ---")]
+    [HideInInspector] private Camera targetCamera;
+    [SerializeField] private CanvasGroup menu;
+    [SerializeField] private CanvasGroup fadeCanvas;
+
+    [Header("--- MOVEMENT SETTINGS ---")]
     [SerializeField] private float orbitSpeed = 120f;
+    [SerializeField] private float panSpeed = 0.5f;
     [SerializeField] private float zoomSpeed = 5f;
     [SerializeField] private float damping = 10f;
 
-    [Header("Input")]
-    [Tooltip("Mouse button used to rotate (0 = LMB, 1 = RMB, 2 = MMB).")]
+    [Header("--- INPUT CONFIGURATION ---")]
+    [Tooltip("0: Left, 1: Right, 2: Middle")]
     [SerializeField] private int rotateMouseButton = 0;
+    [SerializeField] private int panMouseButton = 2;
 
-    [Header("Menu")]
-    [SerializeField] CanvasGroup menu;
-
-    [Header("Startup Camera")]
+    [Header("--- STARTUP SEQUENCE ---")]
     [SerializeField] private Transform initialTarget;
     [SerializeField] private Vector3 initialPivotOffset = Vector3.zero;
     [SerializeField] private float initialDistance = 6f;
     [SerializeField] private float initialYaw = 0f;
     [SerializeField] private float initialPitch = 20f;
     [SerializeField] private float startupMoveDuration = 1.5f;
-
-    [Header("Fade")]
-    [SerializeField] private CanvasGroup fadeCanvas;
     [SerializeField] private float fadeDuration = 1f;
 
-    // Current target model & config
+    // --- INTERNAL STATE ---
     private Transform target;
     private ModelViewEntry currentConfig;
 
-    // Orbit state
     private float yaw;
     private float pitch;
     private float distance;
+    private Vector3 panOffset = Vector3.zero;
 
-    // Limits from the current model
+    // --- LIMITS (Synced from ModelViewEntry) ---
     private float minYaw, maxYaw, minPitch, maxPitch, minDistance, maxDistance;
 
-    // Smooth focus state
+    // --- TRANSITION STATE ---
     private bool isFocusing;
-    private Vector3 focusStartPos;
-    private Quaternion focusStartRot;
-    private Vector3 focusTargetPos;
-    private Quaternion focusTargetRot;
-    private float focusTime;
-    private float focusDuration;
-
     private bool isStartup;
+    private Vector3 focusStartPos, focusTargetPos;
+    private Quaternion focusStartRot, focusTargetRot;
+    private float focusTime, focusDuration;
 
     private void Awake()
     {
-        if (Instance != null && Instance != this)
-        {
-            Destroy(gameObject);
-            return;
-        }
+        if (Instance != null && Instance != this) { Destroy(gameObject); return; }
         Instance = this;
-
-        if (targetCamera == null)
-            targetCamera = Camera.main;
+        if (targetCamera == null) targetCamera = Camera.main;
     }
 
     private void Start()
@@ -74,17 +63,14 @@ public class CameraOrbitController : MonoBehaviour
         StartCoroutine(StartupSequence());
     }
 
-    /// <summary>
-    /// Called by ModelViewEntry when its button is clicked.
-    /// </summary>
     public void FocusOn(ModelViewEntry config)
     {
-        if (targetCamera == null || isStartup)
-            return;
+        if (targetCamera == null || isStartup) return;
 
         target = config.transform;
         currentConfig = config;
 
+        // 1. Sync Limits from the Part
         minYaw = config.MinYaw;
         maxYaw = config.MaxYaw;
         minPitch = config.MinPitch;
@@ -92,58 +78,37 @@ public class CameraOrbitController : MonoBehaviour
         minDistance = config.MinDistance;
         maxDistance = config.MaxDistance;
 
+        // 2. Setup Target State
         distance = Mathf.Clamp(config.DefaultDistance, minDistance, maxDistance);
-
-        yaw = target.eulerAngles.y;
+        yaw = config.GetStartingYaw();
         pitch = Mathf.Clamp(config.StartPitch, minPitch, maxPitch);
+        panOffset = Vector3.zero;
 
+        // 3. Calculate Transition Points
         Vector3 pivot = GetPivot();
         Vector3 offset = Quaternion.Euler(pitch, yaw, 0f) * (Vector3.back * distance);
-        Vector3 desiredPos = pivot + offset;
-        Quaternion desiredRot = Quaternion.LookRotation(pivot - desiredPos, Vector3.up);
 
         focusStartPos = targetCamera.transform.position;
         focusStartRot = targetCamera.transform.rotation;
-        focusTargetPos = desiredPos;
-        focusTargetRot = desiredRot;
+        focusTargetPos = pivot + offset;
+        focusTargetRot = Quaternion.LookRotation(pivot - focusTargetPos, Vector3.up);
+
         focusDuration = Mathf.Max(0.01f, config.FocusDuration);
         focusTime = 0f;
         isFocusing = true;
     }
 
-    private Vector3 GetPivot()
-    {
-        if (target == null || currentConfig == null)
-            return Vector3.zero;
-
-        return target.position + target.TransformVector(currentConfig.PivotOffset);
-    }
-
     private void LateUpdate()
     {
-        if (targetCamera == null)
-            return;
-
-        if (isStartup)
-            return;
+        if (targetCamera == null || isStartup) return;
 
         if (isFocusing)
         {
-            focusTime += Time.deltaTime;
-            float t = Mathf.Clamp01(focusTime / focusDuration);
-            t = Mathf.SmoothStep(0f, 1f, t);
-
-            targetCamera.transform.position = Vector3.Lerp(focusStartPos, focusTargetPos, t);
-            targetCamera.transform.rotation = Quaternion.Slerp(focusStartRot, focusTargetRot, t);
-
-            if (t >= 1f)
-                isFocusing = false;
-
+            HandleFocusTransition();
             return;
         }
 
-        if (target == null)
-            return;
+        if (target == null) return;
 
         HandleInput();
         UpdateCameraTransform();
@@ -151,23 +116,39 @@ public class CameraOrbitController : MonoBehaviour
 
     private void HandleInput()
     {
+        // --- ORBIT (Rotation) ---
         if (Input.GetMouseButton(rotateMouseButton))
         {
-            float dx = Input.GetAxis("Mouse X");
-            float dy = Input.GetAxis("Mouse Y");
-
-            yaw += dx * orbitSpeed * Time.deltaTime;
-            pitch -= dy * orbitSpeed * Time.deltaTime;
-
+            yaw += Input.GetAxis("Mouse X") * orbitSpeed * Time.deltaTime;
+            pitch -= Input.GetAxis("Mouse Y") * orbitSpeed * Time.deltaTime;
             yaw = Mathf.Clamp(yaw, minYaw, maxYaw);
             pitch = Mathf.Clamp(pitch, minPitch, maxPitch);
         }
 
+        // --- PANNING (Movement) ---
+        if (Input.GetMouseButton(panMouseButton))
+        {
+            float factor = distance * panSpeed * Time.deltaTime;
+            Vector3 move = (targetCamera.transform.right * -Input.GetAxis("Mouse X") * factor) +
+                           (targetCamera.transform.up * -Input.GetAxis("Mouse Y") * factor);
+
+            Vector3 newPan = panOffset + move;
+
+            // Clamp Pan using ModelViewEntry limits
+            if (currentConfig != null)
+            {
+                newPan.x = Mathf.Clamp(newPan.x, -currentConfig.MaxPanHorizontal, currentConfig.MaxPanHorizontal);
+                newPan.y = Mathf.Clamp(newPan.y, -currentConfig.MaxPanVertical, currentConfig.MaxPanVertical);
+                newPan.z = Mathf.Clamp(newPan.z, -currentConfig.MaxPanHorizontal, currentConfig.MaxPanHorizontal);
+            }
+            panOffset = newPan;
+        }
+
+        // --- ZOOM ---
         float scroll = Input.GetAxis("Mouse ScrollWheel");
         if (Mathf.Abs(scroll) > Mathf.Epsilon)
         {
-            distance -= scroll * zoomSpeed;
-            distance = Mathf.Clamp(distance, minDistance, maxDistance);
+            distance = Mathf.Clamp(distance - (scroll * zoomSpeed), minDistance, maxDistance);
         }
     }
 
@@ -175,92 +156,71 @@ public class CameraOrbitController : MonoBehaviour
     {
         Vector3 pivot = GetPivot();
         Quaternion orbitRot = Quaternion.Euler(pitch, yaw, 0f);
-
         Vector3 targetPos = pivot + orbitRot * (Vector3.back * distance);
         Quaternion targetRot = Quaternion.LookRotation(pivot - targetPos, Vector3.up);
 
-        targetCamera.transform.position = Vector3.Lerp(
-            targetCamera.transform.position,
-            targetPos,
-            Time.deltaTime * damping
-        );
+        targetCamera.transform.position = Vector3.Lerp(targetCamera.transform.position, targetPos, Time.deltaTime * damping);
+        targetCamera.transform.rotation = Quaternion.Slerp(targetCamera.transform.rotation, targetRot, Time.deltaTime * damping);
+    }
 
-        targetCamera.transform.rotation = Quaternion.Slerp(
-            targetCamera.transform.rotation,
-            targetRot,
-            Time.deltaTime * damping
-        );
+    private Vector3 GetPivot()
+    {
+        if (target == null || currentConfig == null) return Vector3.zero;
+        return target.position + target.TransformVector(currentConfig.PivotOffset) + panOffset;
+    }
+
+    private void HandleFocusTransition()
+    {
+        focusTime += Time.deltaTime;
+        float t = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(focusTime / focusDuration));
+
+        targetCamera.transform.position = Vector3.Lerp(focusStartPos, focusTargetPos, t);
+        targetCamera.transform.rotation = Quaternion.Slerp(focusStartRot, focusTargetRot, t);
+
+        if (t >= 1f) isFocusing = false;
     }
 
     private IEnumerator StartupSequence()
     {
-        if (fadeCanvas != null)
-            fadeCanvas.alpha = 1f;
+        if (fadeCanvas != null) fadeCanvas.alpha = 1f;
+        if (menu != null) menu.alpha = 0f;
 
-        menu.alpha = 0f;
+        yield return StartCoroutine(Fade(0f, 1f));
 
-        yield return Fade(0f, 1f);
-        fadeCanvas.gameObject.SetActive(true);
-
-
-        // Pivot position
-        Vector3 pivot = initialTarget != null
-            ? initialTarget.position + initialTarget.TransformVector(initialPivotOffset)
-            : Vector3.zero;
-
-        // Base rotation comes from initial target
-        Quaternion baseRot = initialTarget != null
-            ? initialTarget.rotation
-            : Quaternion.identity;
-
-        // Apply pitch & yaw relative to the initial target rotation
+        Vector3 pivot = initialTarget != null ? initialTarget.position + initialTarget.TransformVector(initialPivotOffset) : Vector3.zero;
+        Quaternion baseRot = initialTarget != null ? initialTarget.rotation : Quaternion.identity;
         Quaternion rot = baseRot * Quaternion.Euler(initialPitch, initialYaw, 0f);
-
-        // Final camera position
         Vector3 pos = pivot + rot * (Vector3.back * initialDistance);
 
-        Vector3 startPos = targetCamera.transform.position;
-        Quaternion startRot = targetCamera.transform.rotation;
+        Vector3 sPos = targetCamera.transform.position;
+        Quaternion sRot = targetCamera.transform.rotation;
 
-        float t = 0f;
-        while (t < 1f)
+        float elapsed = 0f;
+        while (elapsed < 1f)
         {
-            t += Time.deltaTime / startupMoveDuration;
-            float s = Mathf.SmoothStep(0f, 1f, t);
-
-            targetCamera.transform.position = Vector3.Lerp(startPos, pos, s);
-            targetCamera.transform.rotation = Quaternion.Slerp(
-                startRot,
-                Quaternion.LookRotation(pivot - pos, baseRot * Vector3.up),
-                s
-            );
-
+            elapsed += Time.deltaTime / startupMoveDuration;
+            float s = Mathf.SmoothStep(0f, 1f, elapsed);
+            targetCamera.transform.position = Vector3.Lerp(sPos, pos, s);
+            targetCamera.transform.rotation = Quaternion.Slerp(sRot, Quaternion.LookRotation(pivot - pos, baseRot * Vector3.up), s);
             yield return null;
         }
-        menu.alpha = 1f;
 
-        yield return Fade(1f, 0f);
-        fadeCanvas.gameObject.SetActive(false);
+        if (menu != null) menu.alpha = 1f;
+        yield return StartCoroutine(Fade(1f, 0f));
+        if (fadeCanvas != null) fadeCanvas.gameObject.SetActive(false);
         isStartup = false;
     }
 
-
     private IEnumerator Fade(float from, float to)
     {
-        if (fadeCanvas == null)
-            yield break;
-
-        float t = 0f;
-        fadeCanvas.alpha = from;
-
-
-        while (t < 1f)
+        if (fadeCanvas == null) yield break;
+        float elapsed = 0f;
+        while (elapsed < 1f)
         {
-            t += Time.deltaTime / fadeDuration;
-            fadeCanvas.alpha = Mathf.Lerp(from, to, t);
+            elapsed += Time.deltaTime / fadeDuration;
+            fadeCanvas.alpha = Mathf.Lerp(from, to, elapsed);
             yield return null;
         }
-
         fadeCanvas.alpha = to;
     }
 }

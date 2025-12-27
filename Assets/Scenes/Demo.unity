@@ -12622,18 +12622,20 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 14a6adc0931372e42b619dfe0732751f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  menu: {fileID: 899638195}
+  fadeCanvas: {fileID: 1681472533}
   orbitSpeed: 120
+  panSpeed: 0.5
   zoomSpeed: 5
   damping: 10
   rotateMouseButton: 0
-  menu: {fileID: 899638195}
+  panMouseButton: 2
   initialTarget: {fileID: 867722952}
   initialPivotOffset: {x: 0, y: 0, z: 0}
   initialDistance: 6
   initialYaw: 0
   initialPitch: 20
   startupMoveDuration: 3
-  fadeCanvas: {fileID: 1681472533}
   fadeDuration: 3
 --- !u!4 &413658529 stripped
 Transform:
@@ -23129,8 +23131,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   showInMenu: 1
   displayName: Valve
+  buttonPrefabPath: Prefabs/ButtonPart
+  startDirection: 0
   pivotOffset: {x: 0, y: 0, z: 0}
-  focusDirection: 0
   defaultDistance: 3
   startPitch: 15
   focusDuration: 3
@@ -23138,6 +23141,8 @@ MonoBehaviour:
   maxYaw: 180
   minPitch: -10
   maxPitch: 80
+  maxPanHorizontal: 0.5
+  maxPanVertical: 0.5
   minDistance: 2
   maxDistance: 4
 --- !u!1001 &761851516
@@ -100258,8 +100263,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   showInMenu: 1
   displayName: Valve (1)
+  buttonPrefabPath: Prefabs/ButtonPart
+  startDirection: 0
   pivotOffset: {x: 0, y: 0, z: 0}
-  focusDirection: 0
   defaultDistance: 3
   startPitch: 15
   focusDuration: 3
@@ -100267,6 +100273,8 @@ MonoBehaviour:
   maxYaw: 180
   minPitch: -10
   maxPitch: 80
+  maxPanHorizontal: 0.5
+  maxPanVertical: 0.5
   minDistance: 2
   maxDistance: 4
 --- !u!4 &2041829389 stripped
@@ -100952,15 +100960,18 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   showInMenu: 1
   displayName: Gage-valve (13)
+  buttonPrefabPath: Prefabs/ButtonPart
+  startDirection: 3
   pivotOffset: {x: 0, y: 0, z: 0}
-  focusDirection: 1
   defaultDistance: 3
   startPitch: 15
-  focusDuration: 1.5
+  focusDuration: 3
   minYaw: -180
   maxYaw: 180
   minPitch: -10
   maxPitch: 80
+  maxPanHorizontal: 0.5
+  maxPanVertical: 0.5
   minDistance: 2
   maxDistance: 4
 --- !u!4 &2059513085 stripped

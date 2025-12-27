@@ -5,111 +5,109 @@ using UnityEngine.UI;
 [DisallowMultipleComponent]
 public class ModelViewEntry : MonoBehaviour
 {
-    [Header("UI")]
+    public enum ViewDirection { Front, Back, Left, Right, Top, Custom }
+
+    [Header("--- UI SETTINGS ---")]
     [SerializeField] private bool showInMenu = true;
     [SerializeField] private string displayName = "";
-    private Button buttonPrefab;   // Prefab of your menu button
-    private Transform buttonParent; // ScrollView Content transform
+    [Tooltip("Path inside Resources folder for the button prefab")]
+    [SerializeField] private string buttonPrefabPath = "Prefabs/ButtonPart";
 
-    [Tooltip("Path inside Resources folder")]
-    private string buttonPrefabPath = "Prefabs/ButtonPart";
-
-    [Header("Camera Focus")]
-    [Tooltip("Pivot offset relative to the model (usually center of the mesh).")]
+    [Header("--- INITIAL FOCUS VIEW ---")]
+    [SerializeField] private ViewDirection startDirection = ViewDirection.Front;
     [SerializeField] private Vector3 pivotOffset = Vector3.zero;
 
-    [Tooltip("Camera distance when focusing this model.")]
+    [Space(5)]
+    [Tooltip("Starting distance from the model.")]
     [SerializeField] private float defaultDistance = 3f;
-
-    [Tooltip("Initial pitch angle when focusing this model.")]
+    [Tooltip("Starting vertical tilt.")]
     [SerializeField] private float startPitch = 15f;
-
-    [Tooltip("Time in seconds for the camera to move to this model.")]
+    [Tooltip("Seconds to transition to this model.")]
     [SerializeField] private float focusDuration = 1.5f;
 
-    [Header("Orbit Limits")]
-    [Tooltip("Yaw range; for full 360° set -180 and 180.")]
+    [Header("--- ORBIT LIMITS (ROTATION) ---")]
+    [Tooltip("Left/Right rotation range (-180 to 180 for full circle)")]
     [SerializeField] private float minYaw = -180f;
     [SerializeField] private float maxYaw = 180f;
 
-    [Tooltip("Tilt range. E.g. -80 to 80.")]
+    [Tooltip("Up/Down tilt range (Avoid -90/90 to prevent gimbal lock)")]
     [SerializeField] private float minPitch = -10f;
     [SerializeField] private float maxPitch = 80f;
 
-    [Tooltip("Zoom distance limits.")]
+    [Header("--- PAN LIMITS (MOVEMENT) ---")]
+    [Tooltip("How far left/right the camera can slide from center.")]
+    [SerializeField] private float maxPanHorizontal = 2.0f;
+    [Tooltip("How far up/down the camera can slide from center.")]
+    [SerializeField] private float maxPanVertical = 2.0f;
+
+    [Header("--- ZOOM LIMITS ---")]
     [SerializeField] private float minDistance = 2.0f;
     [SerializeField] private float maxDistance = 4.0f;
 
-    // Expose as read-only properties for the camera controller
+    // --- Private Variables ---
+    private Button buttonPrefab;
+    private Transform buttonParent;
+
+    // --- Properties for Camera Controller ---
     public Vector3 PivotOffset => pivotOffset;
     public float DefaultDistance => defaultDistance;
     public float StartPitch => startPitch;
     public float FocusDuration => focusDuration;
-
     public float MinYaw => minYaw;
     public float MaxYaw => maxYaw;
     public float MinPitch => minPitch;
     public float MaxPitch => maxPitch;
+    public float MaxPanHorizontal => maxPanHorizontal;
+    public float MaxPanVertical => maxPanVertical;
     public float MinDistance => minDistance;
     public float MaxDistance => maxDistance;
 
+    public float GetStartingYaw()
+    {
+        switch (startDirection)
+        {
+            case ViewDirection.Front: return 0f;
+            case ViewDirection.Back: return 180f;
+            case ViewDirection.Left: return -90f;
+            case ViewDirection.Right: return 90f;
+            default: return 0f;
+        }
+    }
+
     private void OnValidate()
     {
-        // Called when the component is first added (used in the inspector)
         if (string.IsNullOrEmpty(displayName))
-        {
             displayName = gameObject.name;
-        }
     }
 
     private void Start()
     {
-        if (!showInMenu)
-            return;
+        if (!showInMenu) return;
 
-        if (string.IsNullOrEmpty(displayName))
-        {
-            displayName = gameObject.name;
-        }
-
-        buttonParent = FindObjectOfType<VerticalLayoutGroup>().transform;
+        buttonParent = FindObjectOfType<VerticalLayoutGroup>()?.transform;
         if (buttonParent == null)
         {
-            Debug.LogWarning($"[{name}] Button parent is not assigned.");
+            Debug.LogWarning($"[{name}] VerticalLayoutGroup (Button Parent) not found.");
             return;
-
         }
 
-        // Load the prefab from Resources/Prefabs
-        Button buttonPrefab = Resources.Load<Button>(buttonPrefabPath);
-        if (buttonPrefab == null)
+        Button prefab = Resources.Load<Button>(buttonPrefabPath);
+        if (prefab == null)
         {
-            Debug.LogError($"[{name}] Could not load Button prefab at Resources/{buttonPrefabPath}");
+            Debug.LogError($"[{name}] Button prefab missing at Resources/{buttonPrefabPath}");
             return;
         }
 
-        // Instantiate button in the scroll view
-        Button btn = Instantiate(buttonPrefab, buttonParent);
-
-        // Label the button
+        Button btn = Instantiate(prefab, buttonParent);
         RTLTextMeshPro label = btn.GetComponentInChildren<RTLTextMeshPro>();
-        if (label != null)
-        {
-            label.text = displayName;
-        }
+        if (label != null) label.text = displayName;
 
-        // Wire up the click to focus this model
         btn.onClick.AddListener(OnButtonClicked);
     }
 
     private void OnButtonClicked()
     {
-        if (CameraOrbitController.Instance == null)
-        {
-            Debug.LogWarning("CameraOrbitController.Instance not found in scene.");
-            return;
-        }
-
-        CameraOrbitController.Instance.FocusOn(this);
+        if (CameraOrbitController.Instance != null)
+            CameraOrbitController.Instance.FocusOn(this);
     }
 }
