@@ -23230,7 +23230,7 @@ MonoBehaviour:
   panelPosition: 4
   uiDistance: 0.5
   additionalOffset: {x: 0, y: 0, z: 0}
-  partTitle: 
+  partTitle: Valve
   partInfo: Valve Info
 --- !u!1001 &761851516
 PrefabInstance:
@@ -51927,7 +51927,7 @@ MonoBehaviour:
   m_BlockingObjects: 0
   m_BlockingMask:
     serializedVersion: 2
-    m_Bits: 4294967295
+    m_Bits: 55
 --- !u!114 &1407540269
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -100620,8 +100620,8 @@ MonoBehaviour:
   maxDistance: 4
   panelPosition: 4
   uiDistance: 0.5
-  additionalOffset: {x: 0, y: 0, z: 0}
-  partTitle: 
+  additionalOffset: {x: 0, y: 0, z: -0.05}
+  partTitle: Valve (1)
   partInfo: Details about this part...
 --- !u!4 &2041829389 stripped
 Transform:
@@ -101321,10 +101321,10 @@ MonoBehaviour:
   maxPanVertical: 0.5
   minDistance: 2
   maxDistance: 4
-  panelPosition: 0
+  panelPosition: 2
   uiDistance: 0.5
-  additionalOffset: {x: 0, y: 0, z: 0}
-  partTitle: 
+  additionalOffset: {x: -0.48, y: 0.45, z: 0}
+  partTitle: Gage-valve (13)
   partInfo: Details about this part...
 --- !u!4 &2059513085 stripped
 Transform:

@@ -1,15 +1,23 @@
 using RTLTMPro;
+using Sirenix.OdinInspector;
 using UnityEngine;
 using UnityEngine.UI;
+#if SIRENIX_ODIN_INSPECTOR
+using Sirenix.OdinInspector;
+#endif
 
 [DisallowMultipleComponent]
 public class ModelViewEntry : MonoBehaviour
 {
     public enum ViewDirection { Front, Back, Left, Right, Top, Custom }
+    public enum UIPosition { Top, Bottom, Left, Right, Front, Custom }
 
     [Header("--- UI SETTINGS ---")]
     [SerializeField] private bool showInMenu = true;
+
+    [OnValueChanged("SyncTitle")] // Odin: Syncs when you type in the inspector
     [SerializeField] private string displayName = "";
+
     [Tooltip("Path inside Resources folder for the button prefab")]
     [SerializeField] private string buttonPrefabPath = "Prefabs/ButtonPart";
 
@@ -18,60 +26,48 @@ public class ModelViewEntry : MonoBehaviour
     [SerializeField] private Vector3 pivotOffset = Vector3.zero;
 
     [Space(5)]
-    [Tooltip("Starting distance from the model.")]
     [SerializeField] private float defaultDistance = 3f;
-    [Tooltip("Starting vertical tilt.")]
     [SerializeField] private float startPitch = 15f;
-    [Tooltip("Seconds to transition to this model.")]
     [SerializeField] private float focusDuration = 1.5f;
 
     [Header("--- ORBIT LIMITS (ROTATION) ---")]
-    [Tooltip("Left/Right rotation range (-180 to 180 for full circle)")]
     [SerializeField] private float minYaw = -180f;
     [SerializeField] private float maxYaw = 180f;
-
-    [Tooltip("Up/Down tilt range (Avoid -90/90 to prevent gimbal lock)")]
     [SerializeField] private float minPitch = -10f;
     [SerializeField] private float maxPitch = 80f;
 
     [Header("--- PAN LIMITS (MOVEMENT) ---")]
-    [Tooltip("How far left/right the camera can slide from center.")]
     [SerializeField] private float maxPanHorizontal = 2.0f;
-    [Tooltip("How far up/down the camera can slide from center.")]
     [SerializeField] private float maxPanVertical = 2.0f;
 
     [Header("--- ZOOM LIMITS ---")]
     [SerializeField] private float minDistance = 2.0f;
     [SerializeField] private float maxDistance = 4.0f;
 
-    // Update the Enum to include Custom
-    public enum UIPosition { Top, Bottom, Left, Right, Front, Custom }
-
     [Header("--- UI PLACEMENT ---")]
     [SerializeField] private UIPosition panelPosition = UIPosition.Top;
     [SerializeField] private float uiDistance = 0.5f;
-
-    [Tooltip("This offset is ADDED to the preset position above. Useful for fine-tuning.")]
     [SerializeField] private Vector3 additionalOffset = Vector3.zero;
 
-    // Properties
-    public UIPosition PanelPosition => panelPosition;
-    public float UIDistance => uiDistance;
-    public Vector3 AdditionalOffset => additionalOffset;
-
     [Header("--- PART INFORMATION ---")]
+#if SIRENIX_ODIN_INSPECTOR
+    [HorizontalGroup("TitleGroup")]
+    [Button(ButtonSizes.Small, Name = "Reset to Display Name")]
+    public void ResetTitle() => SyncTitle();
+
+    [HorizontalGroup("TitleGroup")]
+#endif
     [SerializeField] private string partTitle = "";
+
     [TextArea(3, 10)]
     [SerializeField] private string partInfo = "Details about this part...";
 
+    // Properties
     public string PartTitle => string.IsNullOrEmpty(partTitle) ? displayName : partTitle;
     public string PartInfo => partInfo;
-
-    // --- Private Variables ---
-    private Button buttonPrefab;
-    private Transform buttonParent;
-
-    // --- Properties for Camera Controller ---
+    public UIPosition PanelPosition => panelPosition;
+    public float UIDistance => uiDistance;
+    public Vector3 AdditionalOffset => additionalOffset;
     public Vector3 PivotOffset => pivotOffset;
     public float DefaultDistance => defaultDistance;
     public float StartPitch => startPitch;
@@ -85,6 +81,25 @@ public class ModelViewEntry : MonoBehaviour
     public float MinDistance => minDistance;
     public float MaxDistance => maxDistance;
 
+    // --- Internal Sync Logic ---
+    private void SyncTitle()
+    {
+        partTitle = displayName;
+    }
+
+    private void OnValidate()
+    {
+        // Set displayName to object name if empty
+        if (string.IsNullOrEmpty(displayName))
+            displayName = gameObject.name;
+
+        // Automatically push displayName to partTitle in editor
+        if (string.IsNullOrEmpty(partTitle))
+            SyncTitle();
+    }
+
+    // --- Logic ---
+
     public float GetStartingYaw()
     {
         switch (startDirection)
@@ -97,29 +112,15 @@ public class ModelViewEntry : MonoBehaviour
         }
     }
 
-    private void OnValidate()
-    {
-        if (string.IsNullOrEmpty(displayName))
-            displayName = gameObject.name;
-    }
-
     private void Start()
     {
         if (!showInMenu) return;
 
-        buttonParent = FindObjectOfType<VerticalLayoutGroup>()?.transform;
-        if (buttonParent == null)
-        {
-            Debug.LogWarning($"[{name}] VerticalLayoutGroup (Button Parent) not found.");
-            return;
-        }
+        Transform buttonParent = FindObjectOfType<VerticalLayoutGroup>()?.transform;
+        if (buttonParent == null) return;
 
         Button prefab = Resources.Load<Button>(buttonPrefabPath);
-        if (prefab == null)
-        {
-            Debug.LogError($"[{name}] Button prefab missing at Resources/{buttonPrefabPath}");
-            return;
-        }
+        if (prefab == null) return;
 
         Button btn = Instantiate(prefab, buttonParent);
         RTLTextMeshPro label = btn.GetComponentInChildren<RTLTextMeshPro>();
