@@ -44,6 +44,29 @@ public class ModelViewEntry : MonoBehaviour
     [SerializeField] private float minDistance = 2.0f;
     [SerializeField] private float maxDistance = 4.0f;
 
+    // Update the Enum to include Custom
+    public enum UIPosition { Top, Bottom, Left, Right, Front, Custom }
+
+    [Header("--- UI PLACEMENT ---")]
+    [SerializeField] private UIPosition panelPosition = UIPosition.Top;
+    [SerializeField] private float uiDistance = 0.5f;
+
+    [Tooltip("This offset is ADDED to the preset position above. Useful for fine-tuning.")]
+    [SerializeField] private Vector3 additionalOffset = Vector3.zero;
+
+    // Properties
+    public UIPosition PanelPosition => panelPosition;
+    public float UIDistance => uiDistance;
+    public Vector3 AdditionalOffset => additionalOffset;
+
+    [Header("--- PART INFORMATION ---")]
+    [SerializeField] private string partTitle = "";
+    [TextArea(3, 10)]
+    [SerializeField] private string partInfo = "Details about this part...";
+
+    public string PartTitle => string.IsNullOrEmpty(partTitle) ? displayName : partTitle;
+    public string PartInfo => partInfo;
+
     // --- Private Variables ---
     private Button buttonPrefab;
     private Transform buttonParent;

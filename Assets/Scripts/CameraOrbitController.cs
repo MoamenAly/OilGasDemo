@@ -1,3 +1,4 @@
+using RTLTMPro;
 using System.Collections;
 using UnityEngine;
 
@@ -21,6 +22,18 @@ public class CameraOrbitController : MonoBehaviour
     [Tooltip("0: Left, 1: Right, 2: Middle")]
     [SerializeField] private int rotateMouseButton = 0;
     [SerializeField] private int panMouseButton = 2;
+
+    [Header("--- INFO UI PANEL ---")]
+    [SerializeField] private CanvasGroup infoPanel; // The Panel's CanvasGroup
+    [SerializeField] private RTLTextMeshPro titleText;
+    [SerializeField] private RTLTextMeshPro infoText;
+    [SerializeField] private float uiFadeSpeed = 5f;
+
+    [Header("--- FLOATING UI CONFIG ---")]
+    [Tooltip("Offset of the panel from the part's pivot point")]
+    [SerializeField] private Vector3 panelOffset = new Vector3(0.5f, 0.5f, 0f);
+
+    private bool isPanelVisible = false;
 
     [Header("--- STARTUP SEQUENCE ---")]
     [SerializeField] private Transform initialTarget;
@@ -78,6 +91,12 @@ public class CameraOrbitController : MonoBehaviour
         minDistance = config.MinDistance;
         maxDistance = config.MaxDistance;
 
+        // Update the UI content
+        if (titleText != null) titleText.text = config.PartTitle;
+        if (infoText != null) infoText.text = config.PartInfo;
+
+        isPanelVisible = true; // Show the panel
+
         // 2. Setup Target State
         distance = Mathf.Clamp(config.DefaultDistance, minDistance, maxDistance);
         yaw = config.GetStartingYaw();
@@ -105,6 +124,8 @@ public class CameraOrbitController : MonoBehaviour
         if (isFocusing)
         {
             HandleFocusTransition();
+            // Keep UI hidden while moving
+            if (infoPanel != null) infoPanel.alpha = 0;
             return;
         }
 
@@ -112,6 +133,57 @@ public class CameraOrbitController : MonoBehaviour
 
         HandleInput();
         UpdateCameraTransform();
+
+        // NEW METHODS
+        PositionUINearPart();
+        HandleUIVisibility();
+    }
+
+    private void PositionUINearPart()
+    {
+        if (infoPanel == null || target == null || currentConfig == null) return;
+
+        Vector3 basePivot = GetStaticPivot();
+        Vector3 directionVec = Vector3.zero;
+
+        // 1. Calculate the base direction vector
+        switch (currentConfig.PanelPosition)
+        {
+            case ModelViewEntry.UIPosition.Top: directionVec = target.up * currentConfig.UIDistance; break;
+            case ModelViewEntry.UIPosition.Bottom: directionVec = -target.up * currentConfig.UIDistance; break;
+            case ModelViewEntry.UIPosition.Left: directionVec = -target.right * currentConfig.UIDistance; break;
+            case ModelViewEntry.UIPosition.Right: directionVec = target.right * currentConfig.UIDistance; break;
+            case ModelViewEntry.UIPosition.Front: directionVec = target.forward * currentConfig.UIDistance; break;
+            case ModelViewEntry.UIPosition.Custom: directionVec = Vector3.zero; break; // Starts at pivot
+        }
+
+        // 2. Add the custom fine-tuning offset (converted to local model space)
+        Vector3 tweakVec = target.TransformVector(currentConfig.AdditionalOffset);
+
+        // 3. Final Position = Static Pivot + Direction + Tweak
+        Vector3 finalPosition = basePivot + directionVec + tweakVec;
+
+        // 4. Smoothly move the panel to the target position
+        infoPanel.transform.position = Vector3.Lerp(infoPanel.transform.position, finalPosition, Time.deltaTime * damping);
+
+        // 5. Billboard rotation (face camera)
+        infoPanel.transform.LookAt(infoPanel.transform.position + targetCamera.transform.rotation * Vector3.forward,
+                                   targetCamera.transform.rotation * Vector3.up);
+    }
+
+    private void HandleUIVisibility()
+    {
+        if (infoPanel == null) return;
+
+        // Only show panel if we have a target and aren't moving/starting up
+        float targetAlpha = (isPanelVisible && !isFocusing && !isStartup) ? 1f : 0f;
+
+        // Smooth fade
+        infoPanel.alpha = Mathf.MoveTowards(infoPanel.alpha, targetAlpha, Time.deltaTime * uiFadeSpeed);
+
+        // Disable interactions if hidden
+        infoPanel.blocksRaycasts = (infoPanel.alpha > 0.8f);
+        infoPanel.interactable = (infoPanel.alpha > 0.8f);
     }
 
     private void HandleInput()
@@ -167,6 +239,14 @@ public class CameraOrbitController : MonoBehaviour
     {
         if (target == null || currentConfig == null) return Vector3.zero;
         return target.position + target.TransformVector(currentConfig.PivotOffset) + panOffset;
+    }
+
+    private Vector3 GetStaticPivot()
+    {
+        if (target == null || currentConfig == null) return Vector3.zero;
+
+        // We EXCLUDE panOffset here so the UI stays stuck to the mesh
+        return target.position + target.TransformVector(currentConfig.PivotOffset);
     }
 
     private void HandleFocusTransition()
