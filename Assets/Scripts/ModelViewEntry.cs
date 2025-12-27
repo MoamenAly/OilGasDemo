@@ -6,6 +6,7 @@ using UnityEngine.UI;
 public class ModelViewEntry : MonoBehaviour
 {
     [Header("UI")]
+    [SerializeField] private bool showInMenu = true;
     [SerializeField] private string displayName = "";
     private Button buttonPrefab;   // Prefab of your menu button
     private Transform buttonParent; // ScrollView Content transform
@@ -18,13 +19,13 @@ public class ModelViewEntry : MonoBehaviour
     [SerializeField] private Vector3 pivotOffset = Vector3.zero;
 
     [Tooltip("Camera distance when focusing this model.")]
-    [SerializeField] private float defaultDistance = 4f;
+    [SerializeField] private float defaultDistance = 3f;
 
     [Tooltip("Initial pitch angle when focusing this model.")]
     [SerializeField] private float startPitch = 15f;
 
     [Tooltip("Time in seconds for the camera to move to this model.")]
-    [SerializeField] private float focusDuration = 1.0f;
+    [SerializeField] private float focusDuration = 1.5f;
 
     [Header("Orbit Limits")]
     [Tooltip("Yaw range; for full 360° set -180 and 180.")]
@@ -32,12 +33,12 @@ public class ModelViewEntry : MonoBehaviour
     [SerializeField] private float maxYaw = 180f;
 
     [Tooltip("Tilt range. E.g. -80 to 80.")]
-    [SerializeField] private float minPitch = -80f;
+    [SerializeField] private float minPitch = -10f;
     [SerializeField] private float maxPitch = 80f;
 
     [Tooltip("Zoom distance limits.")]
-    [SerializeField] private float minDistance = 1.0f;
-    [SerializeField] private float maxDistance = 10.0f;
+    [SerializeField] private float minDistance = 2.0f;
+    [SerializeField] private float maxDistance = 4.0f;
 
     // Expose as read-only properties for the camera controller
     public Vector3 PivotOffset => pivotOffset;
@@ -63,6 +64,9 @@ public class ModelViewEntry : MonoBehaviour
 
     private void Start()
     {
+        if (!showInMenu)
+            return;
+
         if (string.IsNullOrEmpty(displayName))
         {
             displayName = gameObject.name;
