@@ -265,7 +265,7 @@ public class CameraOrbitController : MonoBehaviour
         if (fadeCanvas != null) fadeCanvas.alpha = 1f;
         if (menu != null) menu.alpha = 0f;
 
-        yield return StartCoroutine(Fade(0f, 1f));
+        yield return StartCoroutine(Fade(1f, 0f));
 
         Vector3 pivot = initialTarget != null ? initialTarget.position + initialTarget.TransformVector(initialPivotOffset) : Vector3.zero;
         Quaternion baseRot = initialTarget != null ? initialTarget.rotation : Quaternion.identity;
@@ -286,7 +286,7 @@ public class CameraOrbitController : MonoBehaviour
         }
 
         if (menu != null) menu.alpha = 1f;
-        yield return StartCoroutine(Fade(1f, 0f));
+        //yield return StartCoroutine(Fade(1f, 0f));
         if (fadeCanvas != null) fadeCanvas.gameObject.SetActive(false);
         isStartup = false;
     }

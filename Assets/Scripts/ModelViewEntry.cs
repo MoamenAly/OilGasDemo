@@ -18,6 +18,8 @@ public class ModelViewEntry : MonoBehaviour
     [OnValueChanged("SyncTitle")] // Odin: Syncs when you type in the inspector
     [SerializeField] private string displayName = "";
 
+    [SerializeField] private Sprite partIcon;
+
     [Tooltip("Path inside Resources folder for the button prefab")]
     [SerializeField] private string buttonPrefabPath = "Prefabs/ButtonPart";
 
@@ -125,6 +127,9 @@ public class ModelViewEntry : MonoBehaviour
         Button btn = Instantiate(prefab, buttonParent);
         RTLTextMeshPro label = btn.GetComponentInChildren<RTLTextMeshPro>();
         if (label != null) label.text = displayName;
+
+        Image icon = btn.GetComponentInChildren<Image>();
+        if (partIcon != null) icon.sprite = partIcon;
 
         btn.onClick.AddListener(OnButtonClicked);
     }
