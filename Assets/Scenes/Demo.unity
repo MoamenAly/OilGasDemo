@@ -38,6 +38,7 @@ RenderSettings:
   m_ReflectionIntensity: 0.7
   m_CustomReflection: {fileID: 0}
   m_Sun: {fileID: 2105732823}
+  m_IndirectSpecularColor: {r: 0.18610062, g: 0.2084195, b: 0.2266768, a: 0.7}
   m_UseRadianceAmbientProbe: 0
 --- !u!157 &3
 LightmapSettings:
@@ -36696,7 +36697,7 @@ MonoBehaviour:
   m_TargetGraphic: {fileID: 348873142}
   m_HandleRect: {fileID: 348873141}
   m_Direction: 2
-  m_Value: 0
+  m_Value: 1
   m_Size: 1
   m_NumberOfSteps: 0
   m_OnValueChanged:
@@ -122010,7 +122011,6 @@ Terrain:
   m_DetailObjectDensity: 1
   m_HeightmapPixelError: 1
   m_SplatMapDistance: 1000
-  m_HeightmapMinimumLODSimplification: 0
   m_HeightmapMaximumLOD: 0
   m_ShadowCastingMode: 2
   m_DrawHeightmap: 1
