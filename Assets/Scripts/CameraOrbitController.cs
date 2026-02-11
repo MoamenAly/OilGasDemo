@@ -23,20 +23,26 @@ public class CameraOrbitController : MonoBehaviour
     [SerializeField] private int rotateMouseButton = 0;
     [SerializeField] private int panMouseButton = 2;
 
+    [Header("--- UI MODE SELECTION ---")]
+    [SerializeField] private UIMode currentUIMode = UIMode.UI_3D;
+    public enum UIMode { UI_3D, UI_2D }
+
     [Header("--- INFO UI PANEL 3D---")]
-    [SerializeField] private CanvasGroup infoPanel3D; // The Panel's CanvasGroup
+    [SerializeField] private CanvasGroup infoPanel3D;
     [SerializeField] private RTLTextMeshPro titleText3D;
     [SerializeField] private Transform contentData3D;
     [SerializeField] private string HorizontalDataPrefabPath3D = "Prefabs/HorizontalData3D";
-    [SerializeField] private float uiFadeSpeed = 5f;
 
     [Header("--- INFO UI PANEL 2D---")]
-    [SerializeField] private CanvasGroup infoPanel2D; // The Panel's CanvasGroup
+    [SerializeField] private CanvasGroup infoPanel2D;
     [SerializeField] private RTLTextMeshPro titleText2D;
     [SerializeField] private Transform contentData2D;
     [SerializeField] private string HorizontalDataPrefabPath2D = "Prefabs/HorizontalData2D";
 
-    [Header("--- FLOATING UI CONFIG ---")]
+    [Header("--- UI SETTINGS ---")]
+    [SerializeField] private float uiFadeSpeed = 5f;
+
+    [Header("--- FLOATING UI CONFIG (3D Only) ---")]
     [Tooltip("Offset of the panel from the part's pivot point")]
     [SerializeField] private Vector3 panelOffset = new Vector3(0.5f, 0.5f, 0f);
 
@@ -83,6 +89,22 @@ public class CameraOrbitController : MonoBehaviour
         StartCoroutine(StartupSequence());
     }
 
+    // Public method to switch UI mode
+    public void SetUIMode(UIMode mode)
+    {
+        currentUIMode = mode;
+
+        // Hide both panels first
+        if (infoPanel3D != null) infoPanel3D.alpha = 0;
+        if (infoPanel2D != null) infoPanel2D.alpha = 0;
+
+        // Refresh the current panel if we have a config
+        if (currentConfig != null)
+        {
+            UpdateUIContent(currentConfig);
+        }
+    }
+
     public void FocusOn(ModelViewEntry config)
     {
         if (targetCamera == null || isStartup) return;
@@ -98,30 +120,10 @@ public class CameraOrbitController : MonoBehaviour
         minDistance = config.MinDistance;
         maxDistance = config.MaxDistance;
 
-        // Update the UI content
-        if (titleText3D != null) titleText3D.text = config.PartTitle;
+        // Update UI based on current mode
+        UpdateUIContent(config);
 
-        // First, destroy all previous data
-        foreach (Transform child in contentData3D)
-        {
-            Destroy(child.gameObject);
-        }
-
-        // Then check if new data exists
-        if (config._data == null) return;
-
-        // Load prefab and instantiate new data
-        GameObject horizontalDataprefab = Resources.Load<GameObject>(HorizontalDataPrefabPath3D);
-        if (horizontalDataprefab == null) return;
-
-        foreach (var data in config._data)
-        {
-            GameObject HorizontalData = Instantiate(horizontalDataprefab, contentData3D);
-            HorizontalData.transform.GetChild(0).GetComponent<RTLTextMeshPro>().text = data.key;
-            HorizontalData.transform.GetChild(1).GetComponent<RTLTextMeshPro>().text = data.value;
-        }
-
-        isPanelVisible = true; // Show the panel
+        isPanelVisible = true;
 
         // 2. Setup Target State
         distance = Mathf.Clamp(config.DefaultDistance, minDistance, maxDistance);
@@ -143,6 +145,62 @@ public class CameraOrbitController : MonoBehaviour
         isFocusing = true;
     }
 
+    private void UpdateUIContent(ModelViewEntry config)
+    {
+        if (currentUIMode == UIMode.UI_3D)
+        {
+            // Update 3D UI
+            if (titleText3D != null) titleText3D.text = config.PartTitle;
+
+            // Clear previous data
+            foreach (Transform child in contentData3D)
+            {
+                Destroy(child.gameObject);
+            }
+
+            // Populate new data
+            if (config._data != null)
+            {
+                GameObject horizontalDataprefab = Resources.Load<GameObject>(HorizontalDataPrefabPath3D);
+                if (horizontalDataprefab != null)
+                {
+                    foreach (var data in config._data)
+                    {
+                        GameObject HorizontalData = Instantiate(horizontalDataprefab, contentData3D);
+                        HorizontalData.transform.GetChild(0).GetComponent<RTLTextMeshPro>().text = data.key;
+                        HorizontalData.transform.GetChild(1).GetComponent<RTLTextMeshPro>().text = data.value;
+                    }
+                }
+            }
+        }
+        else // UI_2D
+        {
+            // Update 2D UI
+            if (titleText2D != null) titleText2D.text = config.PartTitle;
+
+            // Clear previous data
+            foreach (Transform child in contentData2D)
+            {
+                Destroy(child.gameObject);
+            }
+
+            // Populate new data
+            if (config._data != null)
+            {
+                GameObject horizontalDataprefab = Resources.Load<GameObject>(HorizontalDataPrefabPath2D);
+                if (horizontalDataprefab != null)
+                {
+                    foreach (var data in config._data)
+                    {
+                        GameObject HorizontalData = Instantiate(horizontalDataprefab, contentData2D);
+                        HorizontalData.transform.GetChild(0).GetComponent<RTLTextMeshPro>().text = data.key;
+                        HorizontalData.transform.GetChild(1).GetComponent<RTLTextMeshPro>().text = data.value;
+                    }
+                }
+            }
+        }
+    }
+
     private void LateUpdate()
     {
         if (targetCamera == null || isStartup) return;
@@ -152,6 +210,7 @@ public class CameraOrbitController : MonoBehaviour
             HandleFocusTransition();
             // Keep UI hidden while moving
             if (infoPanel3D != null) infoPanel3D.alpha = 0;
+            if (infoPanel2D != null) infoPanel2D.alpha = 0;
             return;
         }
 
@@ -160,9 +219,30 @@ public class CameraOrbitController : MonoBehaviour
         HandleInput();
         UpdateCameraTransform();
 
-        // NEW METHODS
-        PositionUINearPart();
-        HandleUIVisibility();
+        // Handle UI based on mode
+        if (currentUIMode == UIMode.UI_3D)
+        {
+            PositionUINearPart();
+            HandleUIVisibility(infoPanel3D);
+            // Hide 2D panel
+            if (infoPanel2D != null)
+            {
+                infoPanel2D.alpha = 0;
+                infoPanel2D.blocksRaycasts = false;
+                infoPanel2D.interactable = false;
+            }
+        }
+        else // UI_2D
+        {
+            HandleUIVisibility(infoPanel2D);
+            // Hide 3D panel
+            if (infoPanel3D != null)
+            {
+                infoPanel3D.alpha = 0;
+                infoPanel3D.blocksRaycasts = false;
+                infoPanel3D.interactable = false;
+            }
+        }
     }
 
     private void PositionUINearPart()
@@ -180,36 +260,36 @@ public class CameraOrbitController : MonoBehaviour
             case ModelViewEntry.UIPosition.Left: directionVec = -target.right * currentConfig.UIDistance; break;
             case ModelViewEntry.UIPosition.Right: directionVec = target.right * currentConfig.UIDistance; break;
             case ModelViewEntry.UIPosition.Front: directionVec = target.forward * currentConfig.UIDistance; break;
-            case ModelViewEntry.UIPosition.Custom: directionVec = Vector3.zero; break; // Starts at pivot
+            case ModelViewEntry.UIPosition.Custom: directionVec = Vector3.zero; break;
         }
 
-        // 2. Add the custom fine-tuning offset (converted to local model space)
+        // 2. Add the custom fine-tuning offset
         Vector3 tweakVec = target.TransformVector(currentConfig.AdditionalOffset);
 
-        // 3. Final Position = Static Pivot + Direction + Tweak
+        // 3. Final Position
         Vector3 finalPosition = basePivot + directionVec + tweakVec;
 
-        // 4. Smoothly move the panel to the target position
+        // 4. Smoothly move the panel
         infoPanel3D.transform.position = Vector3.Lerp(infoPanel3D.transform.position, finalPosition, Time.deltaTime * damping);
 
-        // 5. Billboard rotation (face camera)
+        // 5. Billboard rotation
         infoPanel3D.transform.LookAt(infoPanel3D.transform.position + targetCamera.transform.rotation * Vector3.forward,
                                    targetCamera.transform.rotation * Vector3.up);
     }
 
-    private void HandleUIVisibility()
+    private void HandleUIVisibility(CanvasGroup panel)
     {
-        if (infoPanel3D == null) return;
+        if (panel == null) return;
 
         // Only show panel if we have a target and aren't moving/starting up
         float targetAlpha = (isPanelVisible && !isFocusing && !isStartup) ? 1f : 0f;
 
         // Smooth fade
-        infoPanel3D.alpha = Mathf.MoveTowards(infoPanel3D.alpha, targetAlpha, Time.deltaTime * uiFadeSpeed);
+        panel.alpha = Mathf.MoveTowards(panel.alpha, targetAlpha, Time.deltaTime * uiFadeSpeed);
 
         // Disable interactions if hidden
-        infoPanel3D.blocksRaycasts = (infoPanel3D.alpha > 0.8f);
-        infoPanel3D.interactable = (infoPanel3D.alpha > 0.8f);
+        panel.blocksRaycasts = (panel.alpha > 0.8f);
+        panel.interactable = (panel.alpha > 0.8f);
     }
 
     private void HandleInput()
@@ -270,8 +350,6 @@ public class CameraOrbitController : MonoBehaviour
     private Vector3 GetStaticPivot()
     {
         if (target == null || currentConfig == null) return Vector3.zero;
-
-        // We EXCLUDE panOffset here so the UI stays stuck to the mesh
         return target.position + target.TransformVector(currentConfig.PivotOffset);
     }
 
@@ -312,7 +390,6 @@ public class CameraOrbitController : MonoBehaviour
         }
 
         if (menu != null) menu.alpha = 1f;
-        //yield return StartCoroutine(Fade(1f, 0f));
         if (fadeCanvas != null) fadeCanvas.gameObject.SetActive(false);
         isStartup = false;
     }
