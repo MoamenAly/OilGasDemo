@@ -23,11 +23,18 @@ public class CameraOrbitController : MonoBehaviour
     [SerializeField] private int rotateMouseButton = 0;
     [SerializeField] private int panMouseButton = 2;
 
-    [Header("--- INFO UI PANEL ---")]
-    [SerializeField] private CanvasGroup infoPanel; // The Panel's CanvasGroup
-    [SerializeField] private RTLTextMeshPro titleText;
-    [SerializeField] private RTLTextMeshPro infoText;
+    [Header("--- INFO UI PANEL 3D---")]
+    [SerializeField] private CanvasGroup infoPanel3D; // The Panel's CanvasGroup
+    [SerializeField] private RTLTextMeshPro titleText3D;
+    [SerializeField] private Transform contentData3D;
+    [SerializeField] private string HorizontalDataPrefabPath3D = "Prefabs/HorizontalData3D";
     [SerializeField] private float uiFadeSpeed = 5f;
+
+    [Header("--- INFO UI PANEL 2D---")]
+    [SerializeField] private CanvasGroup infoPanel2D; // The Panel's CanvasGroup
+    [SerializeField] private RTLTextMeshPro titleText2D;
+    [SerializeField] private Transform contentData2D;
+    [SerializeField] private string HorizontalDataPrefabPath2D = "Prefabs/HorizontalData2D";
 
     [Header("--- FLOATING UI CONFIG ---")]
     [Tooltip("Offset of the panel from the part's pivot point")]
@@ -92,8 +99,27 @@ public class CameraOrbitController : MonoBehaviour
         maxDistance = config.MaxDistance;
 
         // Update the UI content
-        if (titleText != null) titleText.text = config.PartTitle;
-        if (infoText != null) infoText.text = config.PartInfo;
+        if (titleText3D != null) titleText3D.text = config.PartTitle;
+
+        // First, destroy all previous data
+        foreach (Transform child in contentData3D)
+        {
+            Destroy(child.gameObject);
+        }
+
+        // Then check if new data exists
+        if (config._data == null) return;
+
+        // Load prefab and instantiate new data
+        GameObject horizontalDataprefab = Resources.Load<GameObject>(HorizontalDataPrefabPath3D);
+        if (horizontalDataprefab == null) return;
+
+        foreach (var data in config._data)
+        {
+            GameObject HorizontalData = Instantiate(horizontalDataprefab, contentData3D);
+            HorizontalData.transform.GetChild(0).GetComponent<RTLTextMeshPro>().text = data.key;
+            HorizontalData.transform.GetChild(1).GetComponent<RTLTextMeshPro>().text = data.value;
+        }
 
         isPanelVisible = true; // Show the panel
 
@@ -125,7 +151,7 @@ public class CameraOrbitController : MonoBehaviour
         {
             HandleFocusTransition();
             // Keep UI hidden while moving
-            if (infoPanel != null) infoPanel.alpha = 0;
+            if (infoPanel3D != null) infoPanel3D.alpha = 0;
             return;
         }
 
@@ -141,7 +167,7 @@ public class CameraOrbitController : MonoBehaviour
 
     private void PositionUINearPart()
     {
-        if (infoPanel == null || target == null || currentConfig == null) return;
+        if (infoPanel3D == null || target == null || currentConfig == null) return;
 
         Vector3 basePivot = GetStaticPivot();
         Vector3 directionVec = Vector3.zero;
@@ -164,26 +190,26 @@ public class CameraOrbitController : MonoBehaviour
         Vector3 finalPosition = basePivot + directionVec + tweakVec;
 
         // 4. Smoothly move the panel to the target position
-        infoPanel.transform.position = Vector3.Lerp(infoPanel.transform.position, finalPosition, Time.deltaTime * damping);
+        infoPanel3D.transform.position = Vector3.Lerp(infoPanel3D.transform.position, finalPosition, Time.deltaTime * damping);
 
         // 5. Billboard rotation (face camera)
-        infoPanel.transform.LookAt(infoPanel.transform.position + targetCamera.transform.rotation * Vector3.forward,
+        infoPanel3D.transform.LookAt(infoPanel3D.transform.position + targetCamera.transform.rotation * Vector3.forward,
                                    targetCamera.transform.rotation * Vector3.up);
     }
 
     private void HandleUIVisibility()
     {
-        if (infoPanel == null) return;
+        if (infoPanel3D == null) return;
 
         // Only show panel if we have a target and aren't moving/starting up
         float targetAlpha = (isPanelVisible && !isFocusing && !isStartup) ? 1f : 0f;
 
         // Smooth fade
-        infoPanel.alpha = Mathf.MoveTowards(infoPanel.alpha, targetAlpha, Time.deltaTime * uiFadeSpeed);
+        infoPanel3D.alpha = Mathf.MoveTowards(infoPanel3D.alpha, targetAlpha, Time.deltaTime * uiFadeSpeed);
 
         // Disable interactions if hidden
-        infoPanel.blocksRaycasts = (infoPanel.alpha > 0.8f);
-        infoPanel.interactable = (infoPanel.alpha > 0.8f);
+        infoPanel3D.blocksRaycasts = (infoPanel3D.alpha > 0.8f);
+        infoPanel3D.interactable = (infoPanel3D.alpha > 0.8f);
     }
 
     private void HandleInput()

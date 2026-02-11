@@ -21,6 +21,7 @@ public class ModelViewEntry : MonoBehaviour
     [SerializeField] private Sprite partIcon;
 
     [Tooltip("Path inside Resources folder for the button prefab")]
+    [SerializeField] Transform buttonParent;
     [SerializeField] private string buttonPrefabPath = "Prefabs/ButtonPart";
 
     [Header("--- INITIAL FOCUS VIEW ---")]
@@ -61,12 +62,10 @@ public class ModelViewEntry : MonoBehaviour
 #endif
     [SerializeField] private string partTitle = "";
 
-    [TextArea(3, 10)]
-    [SerializeField] private string partInfo = "Details about this part...";
+    [SerializeField] public Data[] _data;
 
     // Properties
     public string PartTitle => string.IsNullOrEmpty(partTitle) ? displayName : partTitle;
-    public string PartInfo => partInfo;
     public UIPosition PanelPosition => panelPosition;
     public float UIDistance => uiDistance;
     public Vector3 AdditionalOffset => additionalOffset;
@@ -118,7 +117,6 @@ public class ModelViewEntry : MonoBehaviour
     {
         if (!showInMenu) return;
 
-        Transform buttonParent = FindObjectOfType<VerticalLayoutGroup>()?.transform;
         if (buttonParent == null) return;
 
         Button prefab = Resources.Load<Button>(buttonPrefabPath);
@@ -139,4 +137,11 @@ public class ModelViewEntry : MonoBehaviour
         if (CameraOrbitController.Instance != null)
             CameraOrbitController.Instance.FocusOn(this);
     }
+}
+
+[System.Serializable]
+public class Data
+{
+    public string key;
+    public string value;
 }
