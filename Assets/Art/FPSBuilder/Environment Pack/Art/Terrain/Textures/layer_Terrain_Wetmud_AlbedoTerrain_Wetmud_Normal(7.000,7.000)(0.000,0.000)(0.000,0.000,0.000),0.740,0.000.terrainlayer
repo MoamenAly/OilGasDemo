@@ -9,7 +9,7 @@ TerrainLayer:
   m_Name: layer_Terrain_Wetmud_AlbedoTerrain_Wetmud_Normal(7.000,7.000)(0.000,0.000)(0.000,0.000,0.000),0.740,0.000
   m_DiffuseTexture: {fileID: 2800000, guid: ae7fc0968dcce21459e69d624421284a, type: 3}
   m_NormalMapTexture: {fileID: 2800000, guid: 99a8d7b79735ed5459528c088d402723, type: 3}
-  m_MaskMapTexture: {fileID: 0}
+  m_MaskMapTexture: {fileID: 2800000, guid: ae7fc0968dcce21459e69d624421284a, type: 3}
   m_TileSize: {x: 7, y: 7}
   m_TileOffset: {x: 0, y: 0}
   m_Specular: {r: 0, g: 0, b: 0, a: 0}
@@ -19,4 +19,5 @@ TerrainLayer:
   m_DiffuseRemapMin: {x: 0, y: 0, z: 0, w: 0}
   m_DiffuseRemapMax: {x: 1, y: 1, z: 1, w: 1}
   m_MaskMapRemapMin: {x: 0, y: 0, z: 0, w: 0}
-  m_MaskMapRemapMax: {x: 1, y: 1, z: 1, w: 1}
+  m_MaskMapRemapMax: {x: 0, y: 1, z: 1, w: 0}
+  m_SmoothnessSource: 1
